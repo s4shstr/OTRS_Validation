@@ -20,32 +20,31 @@ import pandas as pd
 import numpy as np
 
 
-BLOCKSIZE = 1048576
-str1 = '['
-str2 = '.'
-str3 = '<SelectedValues>'
-k = 0
-j = 0
-firstClient = 'randomword'
-flag = False
-temppath = os.getenv('TEMP')
-browser = webdriver.Chrome('chromedriver.exe')
+# Creating console menu
+print('Выберите действие, которое будет произведено со всеми пользователями.\n1 - всем пользователям будет присвоен статус "недействительный"\n2 - всем пользователям будет присвоен статус "действительный"\n')
+validID_value = input('Введите число: ')
+while not validID_value.isdigit():
+    print('Введенное значение не является числом.')
+    validID_value = input('Введите число: ')
+while int(validID_value) != 1 and int(validID_value) != 2:
+    print('Введено некорректное значение, пожалуйста введите числа "1" или "2".')
+    validID_value = input('Введите "1" или "2": ')
+if int(validID_value) == 1:
+    validID = 'недействительный'
+elif int(validID_value) == 2:
+    validID = 'действительный'
+company_name = str(input('Введите ID клиента (сокращенное наименование компании): '))
+username = str(input('Введите логин от OTRS: '))
+password = str(getpass('Введите пароль от OTRS: '))
 
-
-# OTRS staff info parsing and tables preparing (preview info)
-company_name = str(input('Введите сокращенное наименование компании: '))
-try:
-    os.mkdir(temppath + "\OTRS_Validation");
-except OSError:
-    shutil.rmtree(temppath + "\OTRS_Validation");
-    os.mkdir(temppath + "\OTRS_Validation");
+# OTRS company searching --> number of users counting
+options = webdriver.ChromeOptions()
+options.add_argument('--start-maximized')
+browser = webdriver.Chrome('chromedriver.exe', options = options)
 browser.get('https://hd.itfb.ru/index.pl?Action=AdminCustomerUser;Nav=' + company_name)
-s_username = browser.find_element_by_id('User')
-s_password = browser.find_element_by_id('Password')
-s_continue = browser.find_element_by_id('LoginButton')
-s_username.send_keys(str(input('Введите логин: ')))
-s_password.send_keys(str(getpass('Введите пароль: ')))
-s_continue.click()
+browser.find_element_by_id('User').send_keys(username)
+browser.find_element_by_id('Password').send_keys(password)
+browser.find_element_by_id('LoginButton').click()
 company_name_field = browser.find_element_by_xpath('//*[@id="Search"]')
 company_search_button = browser.find_element_by_xpath('//form[contains(@class, "SearchBox")]//button[contains(@title,"Поиск")]')
 browser.execute_script("arguments[0].click();", company_name_field)
@@ -54,29 +53,25 @@ browser.execute_script("arguments[0].click();", company_search_button)
 page = browser.page_source
 otrs_staff_raw_html = pd.read_html(browser.find_element_by_id("CustomerTable").get_attribute('outerHTML'))
 otrs_staff_raw_xlsx = otrs_staff_raw_html[0].drop(otrs_staff_raw_html[0].columns[[3, 4, 5]], axis='columns')
-otrs_staff_raw_xlsx.to_excel(temppath + '\OTRS_Validation\\' + company_name + '_otrs_staff_raw.xlsx', index=False)
 
-# OTRS staff info parsing, tables preparing, collisions searching (extended info)
+# Users profile editing
 digit_count = 0
-otrs_staff = pd.read_excel(temppath + '\OTRS_Validation\\' + company_name + '_otrs_staff_raw.xlsx', encoding = 'utf-8')
-for index, row in otrs_staff.iterrows():
+for index, row in otrs_staff_raw_xlsx.iterrows():
+    otrs_login = row['Логин']
+    browser.get('https://hd.itfb.ru/index.pl?Action=AdminCustomerUser;Subaction=Change;ID=' + otrs_login + ';Search=' + company_name + ';Nav=Agent')
     otrs_login = row['Логин'].split('@')[0]
-    print(otrs_login + ' (' + str(index + 1) + ' of ' + str(len(otrs_staff)) + ')')
-    browser.get('https://hd.itfb.ru/index.pl?Action=AdminCustomerUser;Subaction=Change;ID='+ otrs_login + '%40' + company_name + ';Search=' + company_name + ';Nav=Agent')
-    browser.find_element_by_xpath('//*[@id="UserVip"]').click()
-    time.sleep(0.5)
-    #browser.find_element_by_xpath('//*[@id="ValidID"]').click()
-    #phone_extension_raw = Select(browser.find_element_by_xpath('//*[@id="ValidID"]'))
-    pyautogui.press('tab')  
-    pyautogui.press('down')
-    pyautogui.press('down') 
-    pyautogui.press('down') 
-    pyautogui.press('Enter')
+    print(otrs_login + ' (' + str(index + 1) + ' of ' + str(len(otrs_staff_raw_xlsx)) + ')')
+    if int(validID_value) == 1 and validID == browser.find_element_by_xpath('/html/body/div[1]/div[3]/div[4]/div/div[2]/form/fieldset/div[33]/div[1]/div/div/div').text:
+        continue
+    elif int(validID_value) == 2 and validID == browser.find_element_by_xpath('/html/body/div[1]/div[3]/div[4]/div/div[2]/form/fieldset/div[33]/div[1]/div/div/div').text:
+        continue
+    browser.find_element_by_xpath('//*[@id="ValidID_Search"]').click()
+    wait = WebDriverWait(browser, 3)
+    wait.until(EC.text_to_be_present_in_element((By.XPATH, "/html/body/div[4]/div[1]/div/ul/li[3]/a"), validID))
+    browser.find_element_by_xpath(str("//a[text()='" + validID + "']")).click()
     browser.find_element_by_xpath('//*[@id="SubmitAndContinue"]').click()
+print('\nИдет завершение программы, пожалуйста, подождите...\n')
 
-
+# Browser closing
 browser.close()
 browser.quit()
-
-# Deleting temp files
-os.remove(temppath + '\OTRS_Validation\\' + company_name + '_otrs_staff_raw.xlsx')
