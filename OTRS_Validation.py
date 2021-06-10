@@ -61,9 +61,9 @@ for index, row in otrs_staff_raw_xlsx.iterrows():
     browser.get('https://hd.itfb.ru/index.pl?Action=AdminCustomerUser;Subaction=Change;ID=' + otrs_login + ';Search=' + company_name + ';Nav=Agent')
     otrs_login = row['Логин'].split('@')[0]
     print(otrs_login + ' (' + str(index + 1) + ' of ' + str(len(otrs_staff_raw_xlsx)) + ')')
-    if int(validID_value) == 1 and validID == browser.find_element_by_xpath('/html/body/div[1]/div[3]/div[4]/div/div[2]/form/fieldset/div[33]/div[1]/div/div/div').text:
+    if int(validID_value) == 1 and validID == browser.find_element_by_xpath('/html/body/div[1]/div[4]/div[4]/div/div[2]/form/fieldset/div[33]/select/option[3]').text:
         continue
-    elif int(validID_value) == 2 and validID == browser.find_element_by_xpath('/html/body/div[1]/div[3]/div[4]/div/div[2]/form/fieldset/div[33]/div[1]/div/div/div').text:
+    elif int(validID_value) == 2 and validID == browser.find_element_by_xpath('/html/body/div[1]/div[4]/div[4]/div/div[2]/form/fieldset/div[33]/select/option[3]').text:
         continue
     browser.find_element_by_xpath('//*[@id="ValidID_Search"]').click()
     wait = WebDriverWait(browser, 3)
